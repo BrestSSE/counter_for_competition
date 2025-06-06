@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Жеребьевка</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            background: url('старые-обои-23412982.webp') center;
+            background-size: contain;
+        }
+        
+        .counter {
+        background: url('Display_3.png') no-repeat center center;
+        background-size: contain; /* или cover, в зависимости от нужного эффекта */
+        width: 1600px; /* подставьте реальные размеры вашего счетчика */
+        height: 1600px;
+        position: relative;
+        border-radius: 10px;
+        padding: 0; /* убираем padding, так как позиционируем абсолютно */
+        }
+    
+        .display {
+            position: absolute;
+            background: transparent; /* делаем фон прозрачным */
+            color:rgb(159, 155, 154); /* цвет цифр - возможно нужно изменить */
+            font-family: 'Courier New', monospace;
+            font-size: 70px; /* размер нужно подогнать */
+            font-weight: bold;
+            display: inline-flex;
+            top: 507px; /* подставьте правильные координаты */
+            left: 587px; /* подставьте правильные координаты */
+            gap: 34px;
+        }
+        
+        .digit-container {
+            display: inline-block;
+            width: 40px; /* подогнать под ширину цифры на изображении */
+            height: 85px; /* подогнать под высоту цифры на изображении */
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            margin: 0 0px; /* возможно нужно настроить промежутки между цифрами */
+            padding: 0 0px;
+            background-color: rgb(42, 53, 58);
+        }
+        
+        .digit-container:last-child {
+            border-right: none;
+        }
+        
+        .digit-roll {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            transition: transform 0.1s;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        button {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background-color: #555;
+            transform: scale(1.05);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        #randomBtn {
+            background-color: #d9534f;
+        }
+        
+        #randomBtn:hover {
+            background-color: #c9302c;
+        }
+
+        #editor-panel {
+            /* position: fixed;
+            top: 20px;
+            left: 20px; */
+            margin: 12px;
+            width: 80%;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        #text-input {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            box-sizing: border-box;
+            white-space: pre-wrap; /* Сохраняем переносы строк в textarea */
+        }
+        .btn.delete {
+            background-color: #f44336;
+        }
+        
+        .btn.delete:hover {
+            background-color: #d32f2f;
+        }
+        
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .text-block {
+            position: absolute;
+            min-width: 500px;
+            min-height: 450px;
+            padding: 15px;
+            font-size: 57px;
+            background-color: #e3f2fd;
+            opacity: 0.7;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            cursor: move;
+            user-select: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+            white-space: pre-wrap; /* Сохраняем переносы строк в блоке */
+            font: 18px;
+        }
+        
+        .text-block.active {
+            border: 2px solid #2196F3;
+            background-color: #bbdefb;
+            z-index: 100;
+        }
+        
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div class="counter" id="counter">
+        <div class="display" id="counterDisplay">
+            <div class="digit-container"></div>
+            <div class="digit-container"></div>
+            <div class="digit-container"></div>
+            <div class="digit-container"></div>
+            <div class="digit-container"></div>
+        </div>
+    </div>
+
+    <!-- Кнопка-шестеренка -->
+    <div class="menu-btn" id="menuBtn">
+        <svg class="gear-icon" viewBox="0 0 24 24">
+            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"></path>
+        </svg>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+    
+    <div class="sidebar" id="sidebar">
+        <span class="close-btn">&times;</span>
+        <button id="randomBtn">Случайное</button>
+        <button id="resetBtn">Сброс</button>
+
+        <div style="margin-top: 20px;"></div>
+        <div class="form-group">
+            <label for="message">Минимальное значение</label>
+            <input type="number" id="minNumberInp" placeholder="Введите ваше сообщение" value="1">
+        </div>
+
+        <div class="form-group">
+            <label for="message">Максимальное значение</label>
+            <input type="number" id="maxNumberInp" placeholder="Введите ваше сообщение" value="4">
+        </div>
+
+        <div class="form-group">
+            <label for="message">Выпавшие номера</label>
+            <input type="text" id="rolledNumbersInp" placeholder="" value="" readonly>
+        </div>
+
+        <div class="form-group">
+            <div id="editor-panel">
+                <h1>Редактор текстовых блоков</h1>
+                <textarea id="text-input" placeholder="Введите текст здесь..."></textarea>
+                <div class="controls">
+                    <button id="create-btn" class="btn">Создать блок</button>
+                    <button id="update-btn" class="btn" disabled>Обновить</button>
+                    <button id="delete-btn" class="btn delete" disabled>Удалить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const display = document.getElementById('counterDisplay');
+            const digitContainers = document.querySelectorAll('.digit-container');
+            const incrementBtn = document.getElementById('incrementBtn');
+            const decrementBtn = document.getElementById('decrementBtn');
+            const randomBtn = document.getElementById('randomBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const counterObj = document.getElementById('counter');
+            const minNumberInp = document.getElementById('minNumberInp')
+            const maxNumberInp = document.getElementById('maxNumberInp')
+            const rolledNumbersInp = document.getElementById('rolledNumbersInp')
+            
+            let generator = createUniqueRandomGenerator();
+            let currentValue = 0;
+            const maxDigits = 5;
+            let minValue = Number(minNumberInp.value);
+            let maxValue = Number(maxNumberInp.value);
+            let rolledNumbers = [];
+            let isRolling = false;
+            let isFirstClick = true;
+            let animationId;
+            
+            // Инициализация отображения
+            initDisplay();
+            updateDisplay();
+
+            
+
+            minNumberInp.addEventListener('input', (event) => {
+                if (isRolling) return;
+                currentValue = 0;
+                updateDisplay();
+                minValue = Number(event.target.value);
+                generator=createUniqueRandomGenerator();
+            })
+
+            maxNumberInp.addEventListener('input', (event) => {
+                if (isRolling) return;
+                currentValue = 0;
+                updateDisplay();
+                maxValue = Number(event.target.value);
+                generator=createUniqueRandomGenerator();
+            })
+            
+            counterObj.addEventListener('click', function() {
+                if (isFirstClick) {
+                    // Первый клик - запуск анимации
+                    if (isRolling) return;
+                    isRolling = true;
+                    isFirstClick = false;
+                    
+                    function animateRandomDigits() {
+                        digitContainers.forEach((container) => {
+                            const rolls = container.querySelectorAll('.digit-roll');
+                            const randomDigit = Math.floor(Math.random() * 10);
+                            rolls.forEach((roll, i) => {
+                                roll.style.transform = `translateY(${(randomDigit - i) * 100}%)`;
+                            });
+                        });
+                        animationId = requestAnimationFrame(animateRandomDigits);
+                    }
+                    
+                    animateRandomDigits();
+                } else {
+                    // Второй клик - остановка и установка случайного числа
+                    cancelAnimationFrame(animationId);
+                    isFirstClick = true;
+                    rollToRandom();
+                }
+            });
+            
+            randomBtn.addEventListener('click', function() {
+                if (isRolling) return;
+                rollToRandom();
+            });
+            
+            resetBtn.addEventListener('click', function() {
+                if (isRolling) return;
+                currentValue = 0;
+                updateDisplay();
+                generator=createUniqueRandomGenerator();
+                rolledNumbersInp.value = generator.getUsedNumbers()
+            });
+            
+            // Инициализация цифровых контейнеров
+            function initDisplay() {
+                digitContainers.forEach(container => {
+                    // Создаем 12 цифр в каждом контейнере (для эффекта прокрутки)
+                    for (let i = 0; i < 12; i++) {
+                        const digit = document.createElement('div');
+                        digit.className = 'digit-roll';
+                        digit.textContent = i % 10;
+                        digit.style.transform = `translateY(${-i * 100}%)`;
+                        container.appendChild(digit);
+                    }
+                });
+            }
+            
+            // Функция для обновления отображения
+            function updateDisplay() {
+                const valueStr = padNumber(currentValue, maxDigits);
+                
+                digitContainers.forEach((container, index) => {
+                    const digit = parseInt(valueStr[index]);
+                    const rolls = container.querySelectorAll('.digit-roll');
+                    
+                    rolls.forEach((roll, i) => {
+                        roll.style.transform = `translateY(${(digit - i) * 100}%)`;
+                    });
+                });
+            }
+
+            /**
+             * Создает генератор случайных чисел
+             */
+            function createUniqueRandomGenerator() {
+                let usedNumbers = new Set();
+                let autoReset = false;
+                
+                return {
+                    /**
+                     * Создает уникальный случайный генератор целых чисел
+                     * @param {number} min - Минимальное значение (включительно)
+                     * @param {number} max - Максимальное значение (включительно)
+                     * @param {boolean} [allowReset=false] - Автоматически сбрасывать при исчерпании
+                     * @returns {number} Уникальное случайное число
+                     * @throws {Error} Когда все числа в диапазоне использованы и автоматический сброс выключен
+                     */
+                    getUniqueRandom(min, max, allowReset = false) {
+                        // проверяем входные данные
+                        if (typeof min !== 'number' || typeof max !== 'number') {
+                            throw new TypeError('Min and max must be numbers');
+                        }
+                        if (min > max) {
+                            throw new Error('Min must be <= max');
+                        }
+
+                        // Проверка использованы все числа или нет
+                        const totalNumbers = max - min + 1;
+                        
+                        if (usedNumbers.size >= totalNumbers) {
+                            if (allowReset) {
+                                this.reset();
+                                // После сброса продолжаем генерацию
+                            } else {
+                                alert(`Все числа между ${min} и ${max} уже использованы. Вызовите reset()`);
+                            }
+                        }
+
+                        // Создаем числа пока не найдем уникальный
+                        let randomNum;
+                        let attempts = 0;
+                        const maxAttempts = 100; // Защита от бесконечного цикла
+                        
+                        do {
+                            randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+                            attempts++;
+                            
+                            if (attempts > maxAttempts) {
+                                // Редкий случай, когда много коллизий
+                                throw new Error(`Не удалось найти свободное число после ${maxAttempts} попыток`);
+                            }
+                        } while (usedNumbers.has(randomNum));
+
+                        // Запоминаем число
+                        usedNumbers.add(randomNum);
+                        
+                        return randomNum;
+                    },
+                    
+                    /**
+                     * Сброс памяти генератора
+                     */
+                    reset() {
+                        usedNumbers.clear();
+                        console.log('Генератор сброшен. Все числа снова доступны.');
+                    },
+                    
+                    /**
+                     * Возвращает количесво использованных чисел
+                     */
+                    getUsedCount() {
+                        return usedNumbers.size;
+                    },
+                    
+                    /**
+                     * Возврат диапазона всех использованных чисел (for debugging)
+                     */
+                    getUsedNumbers() {
+                        return Array.from(usedNumbers);
+                    },
+                    
+                    /**
+                     * ВКЛ/ВЫКЛ автосброс
+                     */
+                    setAutoReset(enabled) {
+                        autoReset = enabled;
+                    }
+                };
+            }
+            
+            // Функция для анимации "слот-машины" с последовательной остановкой
+            function rollToRandom() {
+                isRolling = true;
+                const targetValue = generator.getUniqueRandom(minValue, maxValue);
+                const targetStr = padNumber(targetValue, maxDigits);
+                const rollDuration = 6000; // 6 секунды общая анимация
+                const digitStopDelay = 1000; // задержка между остановкой цифр
+                const startTime = Date.now();
+                
+                // Массив для отслеживания остановленных цифр
+                const stoppedDigits = Array(maxDigits).fill(false);
+                
+                // Функция анимации
+                function animateRoll() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / rollDuration, 1);
+                    
+                    // Определяем, какие цифры должны уже остановиться
+                    const digitsToStop = Math.min(
+                        Math.floor(elapsed / digitStopDelay),
+                        maxDigits
+                    );
+                    
+                    // Обновляем массив остановленных цифр
+                    for (let i = 0; i < digitsToStop; i++) {
+                        stoppedDigits[i] = true;
+                    }
+                    
+                    digitContainers.forEach((container, index) => {
+                        const rolls = container.querySelectorAll('.digit-roll');
+                        
+                        if (stoppedDigits[index]) {
+                            // Если цифра должна остановиться - показываем целевую цифру
+                            const targetDigit = parseInt(targetStr[index]);
+                            rolls.forEach((roll, i) => {
+                                roll.style.transform = `translateY(${(targetDigit - i) * 100}%)`;
+                            });
+                        } else {
+                            // Иначе показываем случайную цифру
+                            const randomDigit = Math.floor(Math.random() * 10);
+                            rolls.forEach((roll, i) => {
+                                roll.style.transform = `translateY(${(randomDigit - i) * 100}%)`;
+                            });
+                        }
+                    });
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animateRoll);
+                    } else {
+                        // Устанавливаем конечное значение
+                        currentValue = targetValue;
+                        updateDisplay();
+                        isRolling = false;
+                        rolledNumbers.push(targetValue)
+                        rolledNumbersInp.value = generator.getUsedNumbers()
+                    }
+                }
+                
+                animateRoll();
+            }
+            
+            // Вспомогательная функция для дополнения числа нулями
+            function padNumber(num, length) {
+                return num.toString().padStart(length, '0');
+            }
+        });
+        const SideMenuApp = {
+            // CSS стили в виде строки
+            css: `
+                body {
+                    margin: 0;
+                    font-family: 'Arial', sans-serif;
+                    background-color: #f5f5f5;
+                    color: #333;
+                }
+                
+                .content {
+                    padding: 30px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                }
+                
+                /* Стили для шестеренки */
+                .menu-btn {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    width: 40px;
+                    height: 40px;
+                    background: #4a76a8;
+                    border-radius: 50%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    cursor: pointer;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    z-index: 100;
+                    transition: transform 0.3s;
+                }
+                
+                .menu-btn:hover {
+                    transform: rotate(30deg);
+                }
+                
+                .gear-icon {
+                    width: 24px;
+                    height: 24px;
+                    fill: white;
+                }
+                
+                /* Стили для сайдбара */
+                .sidebar {
+                    height: 100%;
+                    width: 300px;
+                    position: fixed;
+                    top: 0;
+                    right: -300px;
+                    background-color: #4a76a8;
+                    overflow-x: hidden;
+                    transition: 0.3s;
+                    z-index: 1000;
+                    padding-top: 60px;
+                    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+                }
+
+                .sidebar.open {
+                    right: 0; /* Показываем меню */
+                }
+                
+                .sidebar a {
+                    padding: 15px 25px;
+                    text-decoration: none;
+                    font-size: 16px;
+                    color: white;
+                    display: block;
+                    transition: 0.2s;
+                }
+                
+                .sidebar a:hover {
+                    background-color: #3a5f8a;
+                }
+                
+                .sidebar .close-btn {
+                    position: absolute;
+                    top: 15px;
+                    right: 15px;
+                    font-size: 24px;
+                    color: white;
+                    cursor: pointer;
+                }
+                
+                .overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 999;
+                    display: none;
+                }
+                
+                /* Стили для формы */
+                .form-container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                
+                .form-group {
+                    margin-bottom: 20px;
+                }
+                
+                label {
+                    display: block;
+                    margin-bottom: 8px;
+                    margin: 12px;
+                    font-weight: 600;
+                    color: white;
+                }
+                
+                input {
+                    width: 80%;
+                    padding: 12px;
+                    margin: 12px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 16px;
+                    transition: border 0.3s;
+                }
+                
+                input:focus {
+                    border-color: #4a76a8;
+                    outline: none;
+                    box-shadow: 0 0 0 2px rgba(74, 118, 168, 0.2);
+                }
+                
+                h1 {
+                    color: #4a76a8;
+                    margin-bottom: 30px;
+                }
+            `,
+            
+            // Инициализация приложения
+            init: function() {
+                this.injectStyles();
+                this.setupEventListeners();
+            },
+            
+            // Внедрение стилей в документ
+            injectStyles: function() {
+                const styleElement = document.createElement('style');
+                styleElement.textContent = this.css;
+                document.head.appendChild(styleElement);
+            },
+            
+            // Настройка обработчиков событий
+            setupEventListeners: function() {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('overlay');
+                const menuBtn = document.getElementById('menuBtn');
+                const closeBtn = document.querySelector('.close-btn');
+                
+                const openMenu = () => {
+                    sidebar.style.right = '0';
+                    overlay.style.display = 'none';
+                };
+                
+                const closeMenu = () => {
+                    sidebar.style.right = '-300px';
+                    overlay.style.display = 'none';
+                };
+                
+                menuBtn.addEventListener('click', openMenu);
+                closeBtn.addEventListener('click', closeMenu);
+                overlay.addEventListener('click', closeMenu);
+                
+                // Закрытие меню при нажатии Escape
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        closeMenu();
+                    }
+                });
+            }
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            SideMenuApp.init();
+        });
+        // Работа с редактором текста
+        class TextBlockEditor {
+            constructor() {
+                this.textInput = document.getElementById('text-input');
+                this.createBtn = document.getElementById('create-btn');
+                this.updateBtn = document.getElementById('update-btn');
+                this.deleteBtn = document.getElementById('delete-btn');
+                
+                this.activeBlock = null;
+                this.isDragging = false;
+                this.offsetX = 0;
+                this.offsetY = 0;
+                
+                this.initEventListeners();
+            }
+            
+            initEventListeners() {
+                this.createBtn.addEventListener('click', () => this.createBlock());
+                this.updateBtn.addEventListener('click', () => this.updateBlock());
+                this.deleteBtn.addEventListener('click', () => this.deleteBlock());
+                
+                document.addEventListener('mousedown', (e) => this.startDrag(e));
+                document.addEventListener('mousemove', (e) => this.dragBlock(e));
+                document.addEventListener('mouseup', () => this.stopDrag());
+            }
+            
+            createBlock() {
+                const text = this.textInput.value;
+                if (!text.trim()) return;
+                
+                const block = document.createElement('div');
+                block.className = 'text-block';
+                block.textContent = text; // Используем textContent вместо innerHTML
+                
+                // Позиция по центру экрана
+                block.style.left = `${window.innerWidth / 2 - 75}px`;
+                block.style.top = `${window.innerHeight / 2 - 25}px`;
+                
+                document.body.appendChild(block);
+                this.textInput.value = '';
+                this.setActiveBlock(block);
+            }
+            
+            setActiveBlock(block) {
+                if (this.activeBlock) {
+                    this.activeBlock.classList.remove('active');
+                }
+                
+                this.activeBlock = block;
+                
+                if (block) {
+                    block.classList.add('active');
+                    // Переносим текст с сохранением всех переносов строк
+                    this.textInput.value = block.textContent;
+                    this.updateBtn.disabled = false;
+                    this.deleteBtn.disabled = false;
+                } else {
+                    this.textInput.value = '';
+                    this.updateBtn.disabled = true;
+                    this.deleteBtn.disabled = true;
+                }
+            }
+            
+            updateBlock() {
+                if (!this.activeBlock) return;
+                
+                const text = this.textInput.value;
+                this.activeBlock.textContent = text; // Обновляем с сохранением форматирования
+            }
+            
+            deleteBlock() {
+                if (!this.activeBlock) return;
+                
+                document.body.removeChild(this.activeBlock);
+                this.setActiveBlock(null);
+            }
+            
+            startDrag(e) {
+                if (e.target.classList.contains('text-block')) {
+                    this.isDragging = true;
+                    this.setActiveBlock(e.target);
+                    
+                    const rect = e.target.getBoundingClientRect();
+                    this.offsetX = e.clientX - rect.left;
+                    this.offsetY = e.clientY - rect.top;
+                    
+                    e.preventDefault();
+                } else if (!e.target.closest('#editor-panel')) {
+                    this.setActiveBlock(null);
+                }
+            }
+            
+            dragBlock(e) {
+                if (!this.isDragging || !this.activeBlock) return;
+                
+                this.activeBlock.style.left = `${e.clientX - this.offsetX}px`;
+                this.activeBlock.style.top = `${e.clientY - this.offsetY}px`;
+            }
+            
+            stopDrag() {
+                this.isDragging = false;
+            }
+        }
+        
+        // Инициализация редактора после загрузки страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            new TextBlockEditor();
+        });
+    </script>
+</body>
+</html>
